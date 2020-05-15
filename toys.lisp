@@ -53,3 +53,30 @@
     (t (cons (car lats) (subst2 new o1 o2 (cdr lats))))))
 
 (subst2 'd 'x 'y '(a b c x y))
+
+(defun add1 (x)
+  (+ x 1))
+(add1 -2)
+(+ 1 2 4 5)
+(cons 1 2)
+
+(defun tup+ (tup1 tup2)
+  (cond
+    ((or (null tup1) (null tup2)) ())
+    (t (cons (+ (car tup1) (car tup2)) (tup+ (cdr tup1) (cdr tup2))))))
+
+(tup+ '(3 7) '(4 6))
+
+(defun latlen (lats)
+  (cond
+    ((null lats) 0)
+    (t (+ 1 (latlen (cdr lats))))))
+(latlen '(1 2 2 4 3))
+
+(defun occur (lats n)
+  (cond
+    ((null lats) 0)
+    ((eq n (car lats)) (+ 1 (occur (cdr lats) n)))
+    (t (occur (cdr lats) n))))
+
+(occur '(1 2 1 3 1) '1)
