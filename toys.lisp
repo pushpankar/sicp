@@ -80,3 +80,22 @@
     (t (occur (cdr lats) n))))
 
 (occur '(1 2 1 3 1) '1)
+
+;; Chapter 5
+(defun remberplus (lats a)
+  (cond
+    ((null lats) lats)
+    ((listp (car lats)) (cons (remberplus (car lats) a) (remberplus (cdr lats) a)))
+    ((eq (car lats) a) (remberplus (cdr lats) a))
+    (t (cons (car lats) (remberplus (cdr lats) a)))))
+
+(remberplus '((a b c) ((((c) c b))) c) 'c)
+
+(defun occursomething (a l)
+  (cond
+    ((null l) 0)
+    ((listp (car l)) (+ (occursomething a (car l)) (occursomething a (cdr l))))
+    ((eq (car l) a) (+ 1 (occursomething a (cdr l))))
+    (t (occursomething a (cdr l)))))
+
+(occursomething 'a '((a b ((a b a))) a))
