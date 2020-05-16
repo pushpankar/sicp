@@ -99,3 +99,31 @@
     (t (occursomething a (cdr l)))))
 
 (occursomething 'a '((a b ((a b a))) a))
+
+(defun numbers? (l)
+  (cond
+    ((null l) t)
+    ((numberp (car l)) (numbers? (cdr l)))
+    (t nil)))
+
+(defun numberorexp (l)
+  (cond
+    ((null l) t)
+    ((or (numberp (car l)) (isaexp (car l))) (numberorexp (cdr l)))
+    (t nil)))
+
+(defun isaexp (aexp)
+  (cond
+    ((atom? aexp) (numberp aexp))
+    (t
+      (cond
+        ((null aexp) t)
+        ((eq (car aexp) '+) (numberorexp (cdr aexp)))
+        ((eq (car aexp) '*) (numberorexp (cdr aexp)))
+        (t nil)))))
+
+(numberp '*)
+(isaexp '(* 1 (+ 2 1) 2))
+
+(defun value (aexp)
+  ())
