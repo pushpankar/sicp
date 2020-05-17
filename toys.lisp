@@ -125,5 +125,26 @@
 (numberp '*)
 (isaexp '(* 1 (+ 2 1) 2))
 
-(defun value (aexp)
-  ())
+(firsts '((1 2) (3 4)))
+
+(defun set? (lats)
+  (cond
+    ((null lats) t)
+    (t (cond
+          ((mmember (cdr lats) (car lats)) nil)
+          (t (set? (cdr lats)))))))
+
+(set? '(1 2 3 1 3))
+
+(defun dict? (lats)
+  (set? (firsts lats)))
+
+(dict? '((1 2) (2 3)))
+
+(defun revdict (lats)
+  (cond
+    ((null lats) ())
+    (t (cons (cons (car (cdr (car lats))) (car (car lats))) (revdict (cdr lats))))))
+
+
+(revdict '((1 2) (2 3)))
