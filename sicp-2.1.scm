@@ -288,3 +288,43 @@
 
 (matrix-*-matrix (list (list 1 2) (list 1 2)) (list (list 1 2) (list 1 2)))
 (matrix-*-vectort '((1 1) (2 2)) '(1 2))
+
+;; Excercise 2.39
+(define (reverse1 sequence)
+  (foldr (lambda (x y) (append y (list x)))
+         '()
+         sequence))
+
+(define (reverse2 sequence)
+  (foldl (lambda (x y) (cons x y))
+         '()
+         sequence))
+
+(reverse1 (list 1 2 3 4))
+(reverse2 (list 1 2 3 4))
+
+(define (enumerate-interval start end)
+  (if (> start end)
+      '()
+      (cons start (enumerate-interval (+ 1 start)
+                                      end))))
+
+(define (all-pairs start end)
+  (accumulate append
+              '()
+              (map (lambda (i) (map (lambda (j) (list i j))
+                                    (enumerate-interval start i)))
+                   (enumerate-interval start end))))
+
+(all-pairs 1 5)
+
+(define (flat-map proc seq)
+  (accumulate append '() (map proc seq)))
+
+(define (all-pairs2 start end)
+  (flat-map (lambda (i)
+              (map (lambda (j)
+                     (list i j))
+                   (enumerate-interval start i)))
+            (enumerate-interval start end)))
+(all-pairs2 1 5)
