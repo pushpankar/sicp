@@ -70,7 +70,38 @@
 (define (accumulate-filter combine null-value term predicate-fun a next b)
   (cond
    ((> a b) null-value)
-   ((predicate-fun (term a)) (combine (term a) (accumulate combine null-value term (next a) next b)))
-   (else (accumulate combine null-value term predicate-fun (next a) next b))))
+   ((predicate-fun (term a)) (combine (term a) (accumulate-filter combine null-value term predicate-fun (next a) next b)))
+   (else (accumulate-filter combine null-value term predicate-fun (next a) next b))))
 
-(accumulate-iter (lambda (x y) (+ x y)) 0 identity even? 1 increment 10)
+(accumulate-filter (lambda (x y) (+ x y)) 0 identity even? 1 increment 10)
+
+;; Fixed point
+(define (fixed-point f init)
+  (define (iter v)
+    (cond
+     ((close? v (f v)) v)
+     (else (iter (f v)))))
+  (define (close? v1 v2)
+    (< (abs (- v1 v2)) 0.00001))
+  (iter init))
+
+(fixed-point cos 1)
+
+(define (chi)
+  (fixed-point (lambda (x) (+ 1 (/ 1 x))) 1.0))
+(chi)
+
+;;
+(define (average x y)
+  (/ (+ x y) 2))
+
+(define (avg-damp f)
+  (lambda (x)
+    (average x (f x))))
+
+(define (root x)
+  (fixed-point (avg-damp (lambda (y) (/ x y))) 1.0))
+
+(root 2)
+
+(average 2 3.0)

@@ -185,3 +185,106 @@
 (map-tree square (list 1 (list 2 4) 3))
 
 ;;
+(define (subsets s)
+  (if (null? s)
+      (list '())
+      (let ((rest (subsets (cdr s))))
+        (append (map (lambda (x)
+                       (cons (car s) x))
+                     rest)
+                rest))))
+
+(subsets (list 1 2 3 5))
+
+;; Excercise 2.33
+(define (accumulate combine null-value term a next b)
+  (cond
+   ((> a b) null-value)
+   (else (combine (term a) (accumulate combine null-value term (next a) next b)))))
+
+(define (accumulate combine dummy sequence)
+  (cond
+   ((null? sequence) dummy)
+   (else (combine (car sequence) (accumulate combine dummy (cdr sequence))))))
+
+
+(define (map p sequence)
+  (accumulate (lambda (x y) (p x y))
+             nil
+             sequence))
+(accumulate * 1 (list 1 2 3 7))
+
+(define (m-append seq1 seq2)
+  (cond
+   ((null? seq1) seq2)
+   (else (cons (car seq1)
+               (m-append (cdr seq1) seq2)))))
+(m-append (list 1 2 3) (list 6 7 8))
+(define (append-acc seq1 seq2)
+  (accumulate cons seq2 seq1)
+  )
+(append-acc (list 1 2 3) (list 6 7 8))
+
+(define (m-length sequence)
+  (accumulate (lambda (x y) (+ 1 y))
+              0
+              sequence))
+(m-length (list 1 2 3 4 8 0))
+
+;; Example 2.34
+(define (horner-eval x coefficient-sequence)
+  (accumulate (lambda (this-coeff higher-terms)
+                (+ this-coeff (* x higher-terms)))
+              0
+              coefficient-sequence))
+(horner-eval 2 (list 1 3 0 5 0 1))
+
+;; Excercise 2.35
+(define (count-leaves t)
+  (accumulate +
+              1
+              (map count-leaves t)))
+(count-leaves (list 1 2))
+
+(define (accumulate-n op init seqs)
+  (cond
+   ((null? seqs))
+   (else (cons (accumulate op init (map car seqs))
+               (accumulate-n op init (map cdr seqs))))))
+
+(define (accumulate-ns op init seqs)
+  (if (null? (car seqs))
+      '()
+      (cons (accumulate op init (map car seqs))
+            (accumulate-ns op init (map cdr seqs)))))
+(define (map f l)
+  (if (null? l)
+      '()
+      (cons (f (car l)) (map f (cdr l)))))
+
+(accumulate-ns + 0 (list (list 1 2 3) (list 1 2 3) (list 1 2 3)))
+
+(define (matrix-*-vectort m v)
+  (map (lambda (x)
+         (accumulate-ns * 1 (list x v)))
+       m))
+
+(matrix-*-vectort (list (list 1 2 3)
+                        (list 4 5 6)
+                        (list 3 2 4))
+                  (list 1 2 3))
+
+(accumulate-ns * 1 (list (list 1 2 3) (list 1 2 3)))
+
+(define (transpose mat)
+  (accumulate-ns cons '() mat))
+(transpose (list (list 1 2 3) (list 1 2 3)))
+
+(define (matrix-*-matrix m n)
+  (let ((cols (transpose n)))
+    (map (lambda (x)
+           (matrix-*-vectort cols x))
+         m)))
+
+(matrix-*-matrix (list (list 1 2) (list 1 2)) (list (list 1 2) (list 1 2)))
+(matrix-*-vectort '((1 1) (2 2)) '(1 2))
