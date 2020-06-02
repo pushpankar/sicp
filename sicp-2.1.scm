@@ -137,7 +137,7 @@
         (iter (cdr things)
               (cons (square (car things))
                     (answer)))))
-  (iter items nil))
+  (iter items '()))
 (square-list (list 1))
 
 (define (deep-reverse x)
@@ -210,7 +210,7 @@
 
 (define (map p sequence)
   (accumulate (lambda (x y) (p x y))
-             nil
+             '()
              sequence))
 (accumulate * 1 (list 1 2 3 7))
 
@@ -328,3 +328,61 @@
                    (enumerate-interval start i)))
             (enumerate-interval start end)))
 (all-pairs2 1 5)
+
+
+(define (all-triples-of-sum n s)
+  (if (<= s 0)
+      '()
+      (flat-map (lambda (x) (append (all-triples-of-sum (- n 1) s)
+                                    (map (lambda (y) (append y (list n)))
+                                         (all-pair-of-sum (- n 1) (- s n)))))
+                (enumerate-interval 0 n))))
+
+(define (all-pair-of-sum n s)
+  (if (<= s 0)
+      '()
+      (map (lambda (x) (list x (- s x)))
+           (enumerate-interval 0 n))))
+
+(all-pair-of-sum 5 7)
+(all-triples-of-sum 4 7)
+
+(define (remove item sequence)
+  (filter (lambda (x) (not (= x item)))
+          sequence))
+
+(define (get-n-of-sum n sum sequence)
+  (cond
+   ((< (length sequence) n) '())
+   ((and (= (length sequence) n)
+         (= (add sequence) sum)) (list sequence))
+   (else (flat-map (lambda (x) (get-n-of-sum n sum (remove x sequence)))
+                           sequence)
+                 ;; (flat-map (lambda (x) (map (lambda (y) (cons x y))
+                 ;;                            (get-n-of-sum (- n 1) (- sum x) (remove x sequence)))
+                 ;;                            sequence)
+                 )))
+(define (get-n-of-sum2 n sum sequence)
+  (cond
+   ((< (length sequence) n)  '()) ;; a list containg emtpy doesnot have the sum
+   ((< n 0)  '())
+   ((and (= (length sequence) n)
+         (= (add sequence) sum)) (list sequence))
+   (else (flat-map (lambda (x) (map (lambda (y) (cons x y))
+                                    (get-n-of-sum2 (- n 1) (- sum x) (remove x sequence))))
+                   sequence))))
+
+(get-n-of-sum 2 5 (list 1 2 3 4 5 6))
+(get-n-of-sum2 1 1 (list 1 2))
+(get-n-of-sum2 0 0 (list 2))
+(length (list 2))
+(sum 1 2 3)
+(define (add l)
+  (if (null? l)
+      0
+      (+ (car l) (sum (cdr l)))))
+(add '())
+(let ((sequence (list 1 2 3)))
+  (flat-map (lambda (x) (remove x sequence)) sequence))
+
+(map (lambda (x) (cons 1 x)) (list '()))
