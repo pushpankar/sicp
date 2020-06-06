@@ -96,17 +96,7 @@
 (deriv-exp 1 'x)
 (deriv-exp 'x 'x)
 (deriv-exp 'y 'x)
-(deriv-exp (make-sum 'x 'x 'y 'y 'y) 'y)
-(augend (make-sum 'x 'x 'y 'y))
+(deriv-exp (make-sum 'x 'x) 'x)
 
 (deriv-exp (make-product (make-product 'x 'x) 'y) 'x)
-(make-product (make-product 'y 'y) 'x 'x)
-
-(or (=zero? 'x) (=zero? 1))
-(=number? 2 0)
-(make-product 'x 1)
-(deriv-exp (make-exponentiation 'u 1) 'u)
-(make-exponentiation 'u 5)
-
-(test 1 2 3)
-(append (list '+) (list 1 2 3))
+(deriv-exp (make-exponentiation 'u 5) 'u)
