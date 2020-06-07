@@ -158,4 +158,20 @@
     (list->tree (merge sl1 sl2))))
 
 (union-set (list->tree (list 0 1 2 3 8 9 10 11 12))  (list->tree (list 0 1 2 3 4 5 6 7 8 9 10 11 12)))
-(tree-list-2 (list->tree (list 0 1 2 3 4 5 6 7 8 9 10 11 12)))
+
+(define (intersection-set set1 set2)
+  (define (intersection-ordered-list l1 l2)
+    (if (or (null? l1) (null? l2))
+        '()
+        (let ((x1 (car l1))
+              (x2 (car l2)))
+          (cond
+           ((= x1 x2) (cons x1 (intersection-ordered-list (cdr l1) (cdr l2))))
+           ((> x1 x2) (intersection-ordered-list l1 (cdr l2)))
+           (else (intersection-ordered-list (cdr l1) l2))))))
+  (let ((sl1 (tree-list-2 set1))
+        (sl2 (tree-list-2 set2)))
+    (list->tree (intersection-ordered-list sl1 sl2))))
+
+
+(intersection-set (list->tree (list 0 1 2 3 8 9 10 11 12))  (list->tree (list 0 1 2 3 4 5 6 7 8 9 12)))
