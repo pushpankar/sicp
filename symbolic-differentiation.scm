@@ -26,6 +26,12 @@
    ((=number? exp2 0) exp1)
    ((and (number? exp1) (number? exp2)) (+ exp1 exp2))
    (else (list '+ exp1 exp2))))
+
+(define (make-sum-list l)
+  (let ((exprs (filter (lambda (x) (not (= x 0))) l)))
+    ('())))
+
+
 (define (make-product m1 m2)
   (cond ((or (=number? m1 0) (=number? m2 0)) 0)
         ((=number? m1 1) m2)
