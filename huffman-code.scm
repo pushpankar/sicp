@@ -77,25 +77,40 @@
       (append (encode-symbol (car message) tree)
               (encode (cdr message) tree))))
 
-(define (encode-symbol symbol tree)
-  (define (encode-helper branch)
-     (cond
-      ((and (leaf? branch) (eq? (symbol-leaf branch) symbol)) (cons true '()))
-      ((leaf? branch) (cons false '()))
-      (else
-       (let ((left-result (encode-helper (left-branch branch))))
-         (if (car left-result)
-             (cons true (cons 0 (cdr left-result)))
-             (let ((right-result (encode-helper (right-branch branch))))
-               (if (car right-result)
-                   (cons true (cons 1 (cdr right-result)))
-                   (cons false '()))))))))
-  (let ((result (encode-helper tree)))
-    (if (car result)
-        (cdr result)
-        (error "Invalid token"))))
+(define (encode-symbol sym tree)
+  (if (leaf? tree)
+      (if (eq? (symbol-leaf tree) sym)
+          '()
+          (error "Invalid Symbol"))
+      (let ((left (left-branch tree)))
+        (if (memq sym (symbols left))
+            (cons 0 (encode-symbol sym left))
+            (cons 1 (encode-symbol sym (right-branch tree)))))))
 
+(encode-symbol 'C sample-tree)
 
-(encode-symbol 'A sample-tree)
-(encode '(B A C A) sample-tree)
 (decode (encode '(B A C A B B) sample-tree) sample-tree)
+
+(define leaf-set (make-leaf-set '((A 4) (B 2) (C 1) (D 5))))
+(make-code-tree (car leaf-set) (cadr leaf-set))
+(make-code-tree (car leaf-set) '())
+
+(define (generate-huffman-tree pairs)
+  (successive-merge (make-leaf-set pairs)))
+
+;; doesn't work with single leaf
+(define (successive-merge leaf-set)
+  (define (successive-merge-helper leaf-set1 tree)
+    (if (null? leaf-set1)
+        tree
+        (successive-merge-helper (cdr leaf-set1) (make-code-tree (car leaf-set1) tree))))
+  (successive-merge-helper (cddr leaf-set) (make-code-tree (cadr leaf-set) (car leaf-set))))
+
+(successive-merge leaf-set)
+
+(let ((song_tree (generate-huffman-tree '((A 2) (BOOM 1) (GET 2) (JOB 2) (NA 16) (SHA 3) (YIP 9) (WAH 1)))))
+  (encode '(GET A JOB SHA NA NA NA NA NA NA NA NA GET A JOB SHA NA NA NA NA NA WAH YIP YIP YIP SHA BOOM) song_tree))
+  ;; (encode '(YIP) song_tree))
+(encode-symbol 'NA )
+
+(generate-huffman-tree '((a 8) (b 3) (c 1) (d 1) (e 1) (f 1) (g 1) (h 1)))
