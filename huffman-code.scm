@@ -91,26 +91,27 @@
 
 (decode (encode '(B A C A B B) sample-tree) sample-tree)
 
-(define leaf-set (make-leaf-set '((A 4) (B 2) (C 1) (D 5))))
-(make-code-tree (car leaf-set) (cadr leaf-set))
-(make-code-tree (car leaf-set) '())
 
 (define (generate-huffman-tree pairs)
   (successive-merge (make-leaf-set pairs)))
 
+(make-leaf-set (list sample-tree) (make-leaf 'M 8))
+
 ;; doesn't work with single leaf
 (define (successive-merge leaf-set)
-  (define (successive-merge-helper leaf-set1 tree)
-    (if (null? leaf-set1)
-        tree
-        (successive-merge-helper (cdr leaf-set1) (make-code-tree (car leaf-set1) tree))))
-  (successive-merge-helper (cddr leaf-set) (make-code-tree (cadr leaf-set) (car leaf-set))))
-
+  (if (= (length leaf-set) 1)
+      (car leaf-set)
+      (successive-merge (adjoin-set (make-code-tree (car leaf-set) (cadr leaf-set)) (cddr leaf-set)))))
+;; TESTS
+(define leaf-set (make-leaf-set '((A 8) (B 3) (C 1) (D 1) (E 1) (F 1) (G 1) (H 1))))
 (successive-merge leaf-set)
+(define leaf-set
+    (adjoin-set (make-code-tree (car leaf-set) (cadr leaf-set)) (cddr leaf-set)))
+(adjoin-set (make-code-tree (car leaf-set) (cadr leaf-set)) (cddr leaf-set))
 
 (let ((song_tree (generate-huffman-tree '((A 2) (BOOM 1) (GET 2) (JOB 2) (NA 16) (SHA 3) (YIP 9) (WAH 1)))))
-  (encode '(GET A JOB SHA NA NA NA NA NA NA NA NA GET A JOB SHA NA NA NA NA NA WAH YIP YIP YIP SHA BOOM) song_tree))
-  ;; (encode '(YIP) song_tree))
-(encode-symbol 'NA )
+  (encode '(NA) song_tree))
 
-(generate-huffman-tree '((a 8) (b 3) (c 1) (d 1) (e 1) (f 1) (g 1) (h 1)))
+(generate-huffman-tree '((A 2) (BOOM 1) (GET 2) (JOB 2) (NA 16) (SHA 3) (YIP 9) (WAH 1)))
+
+;; ;;
