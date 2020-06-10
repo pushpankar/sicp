@@ -6,6 +6,12 @@
 (define (get op type)
   (hash-ref *op-table* (list op type) '()))
 
+(define *coersion-table* (make-hash))
+(define (put-coersion from to proc)
+  (hash-set! *coersion-table* (list from to) proc))
+(define (get-coersion from to)
+  (hash-ref *coersion-table* (list from to)))
+
 
 ;; helper for generic operations
 (define (attach-tag tag x)
@@ -14,12 +20,28 @@
   (car x))
 (define (contents x)
   (cdr x))
+;; (define (apply-generic op . args)
+;;   (let ((tags (map get-tag args)))
+;;     (let ((proc (get op tags)))
+;;       (if proc
+;;           (apply proc (map contents args))
+;;           (if (= (length args) 2)
+;;               (let ((type1 (car tags))
+;;                     (type2 (cadr tags)))
+;;                 (let ((t1->t2 (get-coersion type1 type2))
+;;                       (t2->t1 (get-coersion type2 type1)))
+;;                   (cond
+;;                    (t1->t2 (apply-generic op (t1->t2 (car args)) (cadr args)))
+;;                    (t2->t1 (apply-generic op (car args) (t2->t1 (cadr args))))
+;;                    (else (error "No coersion found ")))))
+;;               ((error "op not found")))))))
+;;
 (define (apply-generic op . args)
   (let ((tags (map get-tag args)))
     (let ((proc (get op tags)))
-      (if proc
+      (if (null? proc)
           (apply proc (map contents args))
-          (error "op not found")))))
+          (error "good")))))
 
 
 ;; Generic operations
@@ -91,6 +113,8 @@
   (define (eq? x y)
     (and (= (numer x) (numer y))
          (= (denom x) (denom y))))
+  (define (scheme-number->complex x)
+    (make-complex-from-real-imag (contents x) 0))
 
 
   ;; interface to rest of the system
@@ -107,6 +131,7 @@
   (put 'make 'rational
        (lambda (n d) (tag (make-rat n d))))
   (put 'eq? '(rational rational) eq?)
+  (put-coersion 'scheme-number 'complex scheme-number->complex)
   'done)
 
 ;; constructors for the rest of the system
@@ -242,3 +267,7 @@
 ;; Tests
 (eq? (make-complex-from-real-imag 5 6) (make-complex-from-real-imag 5 6))
 (apply-generic 'magnitude (make-complex-from-mag-ang 5 6))
+
+(add (make-complex-from-real-imag 5 3) (make-scheme-number 5))
+
+(apply-generic 'add (make-scheme-number 5) (make-complex-from-real-imag 7 8))
