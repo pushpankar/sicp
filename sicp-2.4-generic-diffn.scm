@@ -68,3 +68,6 @@
   (put 'deriv '* deriv-product)
   'done
   )
+
+;; 2.74
+((get 'get-record 'division1) empid)
