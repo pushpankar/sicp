@@ -10,7 +10,7 @@
 (define (put-coersion from to proc)
   (hash-set! *coersion-table* (list from to) proc))
 (define (get-coersion from to)
-  (hash-ref *coersion-table* (list from to)))
+  (hash-ref *coersion-table* (list from to) '()))
 
 
 ;; helper for generic operations
@@ -20,28 +20,22 @@
   (car x))
 (define (contents x)
   (cdr x))
-;; (define (apply-generic op . args)
-;;   (let ((tags (map get-tag args)))
-;;     (let ((proc (get op tags)))
-;;       (if proc
-;;           (apply proc (map contents args))
-;;           (if (= (length args) 2)
-;;               (let ((type1 (car tags))
-;;                     (type2 (cadr tags)))
-;;                 (let ((t1->t2 (get-coersion type1 type2))
-;;                       (t2->t1 (get-coersion type2 type1)))
-;;                   (cond
-;;                    (t1->t2 (apply-generic op (t1->t2 (car args)) (cadr args)))
-;;                    (t2->t1 (apply-generic op (car args) (t2->t1 (cadr args))))
-;;                    (else (error "No coersion found ")))))
-;;               ((error "op not found")))))))
-;;
 (define (apply-generic op . args)
   (let ((tags (map get-tag args)))
     (let ((proc (get op tags)))
-      (if (null? proc)
+      (if (procedure? proc)
           (apply proc (map contents args))
-          (error "good")))))
+          (if (= (length args) 2)
+              (let ((type1 (car tags))
+                    (type2 (cadr tags)))
+                (let ((t1->t2 (get-coersion type1 type2))
+                      (t2->t1 (get-coersion type2 type1)))
+                  (cond
+                   ((eq? type1 type2) (error "Op not found::Coersion"))
+                   ((procedure? t1->t2) (apply-generic op (t1->t2 (car args)) (cadr args)))
+                   ((procedure? t2->t1) (apply-generic op (car args) (t2->t1 (cadr args))))
+                   (else (error "No coersion found ")))))
+              ((error "op not found regular")))))))
 
 
 ;; Generic operations
@@ -269,5 +263,3 @@
 (apply-generic 'magnitude (make-complex-from-mag-ang 5 6))
 
 (add (make-complex-from-real-imag 5 3) (make-scheme-number 5))
-
-(apply-generic 'add (make-scheme-number 5) (make-complex-from-real-imag 7 8))
