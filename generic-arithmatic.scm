@@ -40,7 +40,8 @@
 
 (define (apply-generic op . args)
   (let ((tags (map get-tag args)))
-    (let ((proc (get op tags)))
+    (let ((proc (get op tags))
+          (o (print (map contents args) " here ")))
       (if (procedure? proc)
           (apply proc (map contents args))
           (let ((coersed-result (coerse args args)))
@@ -55,7 +56,9 @@
 (define (mul x y) (apply-generic 'mul x y))
 (define (div x y) (apply-generic 'div x y))
 (define (eq? x y) (apply-generic 'eq? x y))
-
+(define (mraise x) (if (equal? (get-tag x) 'complex)
+                      x
+                      (apply-generic 'mraise x)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;; Number package ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -78,8 +81,10 @@
   (put 'eq? '(scheme-number scheme-number) eq?)
 
   (put 'make 'scheme-number make)
+  (put 'mraise '(scheme-number) (lambda (x) (make-rational (contents x) 1)))
 
   'done)
+
 
 ;; constructor for the system
 (install-scheme-number)
@@ -90,6 +95,8 @@
 ;; test scheme num package
 (div (make-scheme-number 5) (make-scheme-number 6))
 (eq? (make-scheme-number 5) (make-scheme-number 5))
+
+;; (mraise (make-scheme-number 5))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;; Rational package ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -137,6 +144,7 @@
        (lambda (n d) (tag (make-rat n d))))
   (put 'eq? '(rational rational) eq?)
   (put-coersion 'scheme-number 'complex scheme-number->complex)
+  (put 'mraise '(rational) (lambda (x) (make-complex-from-real-imag x 0)))
   'done)
 
 ;; constructors for the rest of the system
@@ -274,3 +282,6 @@
 (apply-generic 'magnitude (make-complex-from-mag-ang 5 6))
 
 (add (make-complex-from-real-imag 5 3) (make-scheme-number 5))
+
+
+(mraise (make-scheme-number 6))
