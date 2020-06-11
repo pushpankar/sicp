@@ -20,22 +20,33 @@
   (car x))
 (define (contents x)
   (cdr x))
+
+
+(define (coerse source-args target-args)
+  (define (coerse-helper args to result)
+    (if (null? args)
+      result
+      (let ((source-tag (get-tag (car args))))
+        (if (equal? source-tag to)
+            (coerse-helper (cdr args) to (append result (list (car args))))
+            (let ((coerse-fn (get-coersion source-tag to)))
+              (if (procedure? coerse-fn)
+                  (coerse-helper (cdr args) to (append result (list (coerse-fn (car args)))))
+                  (coerse source-args (cdr target-args))))))))
+  (if (null? target-args)
+      '()
+      (coerse-helper source-args (get-tag (car target-args)) '())))
+
+
 (define (apply-generic op . args)
   (let ((tags (map get-tag args)))
     (let ((proc (get op tags)))
       (if (procedure? proc)
           (apply proc (map contents args))
-          (if (= (length args) 2)
-              (let ((type1 (car tags))
-                    (type2 (cadr tags)))
-                (let ((t1->t2 (get-coersion type1 type2))
-                      (t2->t1 (get-coersion type2 type1)))
-                  (cond
-                   ((eq? type1 type2) (error "Op not found::Coersion"))
-                   ((procedure? t1->t2) (apply-generic op (t1->t2 (car args)) (cadr args)))
-                   ((procedure? t2->t1) (apply-generic op (car args) (t2->t1 (cadr args))))
-                   (else (error "No coersion found ")))))
-              ((error "op not found regular")))))))
+          (let ((coersed-result (coerse args args)))
+            (if (null? coersed-result)
+                (error "No valid mapping")
+                (apply apply-generic (append (list op) coersed-result))))))))
 
 
 ;; Generic operations
