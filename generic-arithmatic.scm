@@ -13,6 +13,33 @@
   (hash-ref *coersion-table* (list from to) '()))
 
 
+;; try next on fail
+(define (all arg)
+  (cond
+   ((null? arg) true)
+   ((car arg) (all (cdr arg)))
+   (else false)))
+(define (some arg)
+  (cond
+   ((null? arg) false)
+   ((car arg) true)
+   (else (some (cdr arg)))))
+
+(define (try-seq op args-list)
+  (if (null? args-list)
+      '()
+      (let ((res (op (car args-list))))
+        (if (null? res)
+            (try-seq op (cdr args-list))
+            res))))
+
+(define (all-or-none fn args)
+  (let ((res (map fn args)))
+    (let ((success? (map (lambda (x) (not (null? x))) res)))
+      (if (all success?)
+          res
+          '()))))
+
 ;; helper for generic operations
 (define (attach-tag tag x)
   (cons tag x))
@@ -22,29 +49,25 @@
   (cdr x))
 
 
-(define (coerse source-args target-args)
-  (define (coerse-helper args to result)
-    (if (null? args)
-      result
-      (let ((source-tag (get-tag (car args))))
-        (if (equal? source-tag to)
-            (coerse-helper (cdr args) to (append result (list (car args))))
-            (let ((coerse-fn (get-coersion source-tag to)))
-              (if (procedure? coerse-fn)
-                  (coerse-helper (cdr args) to (append result (list (coerse-fn (car args)))))
-                  (coerse source-args (cdr target-args))))))))
-  (if (null? target-args)
-      '()
-      (coerse-helper source-args (get-tag (car target-args)) '())))
-
+(define (coerse source-args)
+  (define (coerse-helper arg to)
+    (if (equal? (get-tag arg) to)
+        arg
+        (let ((coerse-fn (get-coersion (get-tag arg) to)))
+          (if (procedure? coerse-fn)
+              (coerse-fn arg)
+              '()))))
+  (try-seq (lambda (to)
+             (all-or-none (lambda (from) (coerse-helper from to))
+                          source-args))
+           (map get-tag source-args)))
 
 (define (apply-generic op . args)
   (let ((tags (map get-tag args)))
-    (let ((proc (get op tags))
-          (o (print (map contents args) " here ")))
+    (let ((proc (get op tags)))
       (if (procedure? proc)
           (apply proc (map contents args))
-          (let ((coersed-result (coerse args args)))
+          (let ((coersed-result (coerse args)))
             (if (null? coersed-result)
                 (error "No valid mapping")
                 (apply apply-generic (append (list op) coersed-result))))))))
@@ -81,7 +104,7 @@
   (put 'eq? '(scheme-number scheme-number) eq?)
 
   (put 'make 'scheme-number make)
-  (put 'mraise '(scheme-number) (lambda (x) (make-rational (contents x) 1)))
+  (put 'mraise '(scheme-number) (lambda (x) (make-rational x 1)))
 
   'done)
 
@@ -284,4 +307,4 @@
 (add (make-complex-from-real-imag 5 3) (make-scheme-number 5))
 
 
-(mraise (make-scheme-number 6))
+(mraise (mraise (make-scheme-number 6)))
