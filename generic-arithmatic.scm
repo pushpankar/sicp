@@ -79,9 +79,20 @@
 (define (mul x y) (apply-generic 'mul x y))
 (define (div x y) (apply-generic 'div x y))
 (define (eq? x y) (apply-generic 'eq? x y))
+(define (subset-of? a b) (let ((t1 (get-tag a))
+                               (t2 (get-tag b)))
+                           (cond
+                            ((equal? t1 t2) false)
+                            ((equal? t1 'complex) false)
+                            (else (let ((raised (mraise a)))
+                                    (if (equal? (get-tag raised) t2)
+                                        true
+                                        (subset-of? raised b)))))))
+
 (define (mraise x) (if (equal? (get-tag x) 'complex)
                       x
                       (apply-generic 'mraise x)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;; Number package ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -95,6 +106,9 @@
   (define (mul x y) (tag (* x y)))
   (define (div x y) (tag (/ x y)))
   (define (eq? x y) (= x y))
+  (define (subset-of? a b) (let ((t1 (get-tag a))
+                                 (t2 (get-tag b)))
+                             (and (equal? t1 'scheme-number) (equal? t2 'rational))))
 
   ;; interface
   (put 'add '(scheme-number scheme-number) add)
@@ -102,7 +116,7 @@
   (put 'mul '(scheme-number scheme-number) mul)
   (put 'div '(scheme-number scheme-number) div)
   (put 'eq? '(scheme-number scheme-number) eq?)
-
+  (put 'subset-of? '(scheme-number) subset-of?)
   (put 'make 'scheme-number make)
   (put 'mraise '(scheme-number) (lambda (x) (make-rational x 1)))
 
@@ -151,6 +165,10 @@
   (define (scheme-number->complex x)
     (make-complex-from-real-imag (contents x) 0))
 
+  (define (subset-of? a b) (let ((t1 (get-tag a))
+                                 (t2 (get-tag b)))
+                             (and (equal? t1 'rational) (equal? t2 'complex))))
+
 
   ;; interface to rest of the system
   (define (tag x) (attach-tag 'rational x))
@@ -166,6 +184,7 @@
   (put 'make 'rational
        (lambda (n d) (tag (make-rat n d))))
   (put 'eq? '(rational rational) eq?)
+  (put 'subset-of? '(rational) subset-of?)
   (put-coersion 'scheme-number 'complex scheme-number->complex)
   (put 'mraise '(rational) (lambda (x) (make-complex-from-real-imag x 0)))
   'done)
@@ -266,6 +285,7 @@
   (define (div-complex z1 z2)
     (make-from-mag-ang (/ (magnitude z1) (magnitude z2))
                        (- (angle z1) (angle z2))))
+  (define (subset-of? a b) false)
 
   (define (eq? z1 z2)
     (and (= (angle z1) (angle z2))
@@ -308,3 +328,5 @@
 
 
 (mraise (mraise (make-scheme-number 6)))
+
+(subset-of? (make-complex-from-real-imag 5 8) (make-complex-from-real-imag 6 7))
