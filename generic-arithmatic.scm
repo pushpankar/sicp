@@ -25,6 +25,17 @@
    ((car arg) true)
    (else (some (cdr arg)))))
 
+(define (max-of comparator args)
+  (cond
+   ((null? args) '())
+   ((= (length args) 1) (car args))
+   (else (let ((max-rest (max-of comparator (cdr args)))
+               (a (car args)))
+           (if (comparator a max-rest)
+               a
+               max-rest)))))
+
+
 (define (try-seq op args-list)
   (if (null? args-list)
       '()
@@ -50,17 +61,14 @@
 
 
 (define (coerse source-args)
-  (define (coerse-helper arg to)
+  (define (successive-raise arg to)
     (if (equal? (get-tag arg) to)
         arg
-        (let ((coerse-fn (get-coersion (get-tag arg) to)))
-          (if (procedure? coerse-fn)
-              (coerse-fn arg)
-              '()))))
-  (try-seq (lambda (to)
-             (all-or-none (lambda (from) (coerse-helper from to))
-                          source-args))
-           (map get-tag source-args)))
+        (successive-raise (mraise arg) to)))
+
+  (let ((target-type (get-tag (max-of (compose not subset-of?) source-args))))
+      (all-or-none (lambda (arg) (successive-raise arg target-type)) source-args)))
+
 
 (define (apply-generic op . args)
   (let ((tags (map get-tag args)))
@@ -330,3 +338,5 @@
 (mraise (mraise (make-scheme-number 6)))
 
 (subset-of? (make-complex-from-real-imag 5 8) (make-complex-from-real-imag 6 7))
+
+(coerse (list (make-scheme-number 5) (make-complex-from-real-imag 5 6) (make-rational 5 6)))
