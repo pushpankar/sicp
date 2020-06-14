@@ -1,4 +1,4 @@
-(require racket/trace)
+;; (require racket/trace)
 ;; Utility functions
 (define *op-table* (make-hash))
 (define (put op type proc)
@@ -20,11 +20,15 @@
    ((null? arg) true)
    ((car arg) (all (cdr arg)))
    (else false)))
+
 (define (some arg)
   (cond
    ((null? arg) false)
    ((car arg) true)
    (else (some (cdr arg)))))
+
+(define (square x)
+  (mul x x))
 
 (define (max-of comparator args)
   (cond
@@ -55,10 +59,16 @@
 ;; helper for generic operations
 (define (attach-tag tag x)
   (cons tag x))
+
 (define (get-tag x)
-  (car x))
+  (if (pair? x)
+      (car x)
+      'scheme-number))
+
 (define (contents x)
-  (cdr x))
+  (if (pair? x)
+      (cdr x)
+      x))
 
 
 (define (coerse source-args)
@@ -102,7 +112,7 @@
                       x
                       (apply-generic 'mraise x)))
 
-(define (project x) (if (equal? (get-tag x) 'complex)
+(define (project x) (if (equal? (get-tag x) 'scheme-number)
                       x
                       (apply-generic 'project x)))
 
@@ -115,7 +125,7 @@
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (install-scheme-number)
   ;; internal packages
-  (define (tag x) (attach-tag 'scheme-number x))
+  (define (tag x) x)
   (define (make x) (tag x))
   (define (add x y) (tag (+ x y)))
   (define (sub x y) (tag (- x y)))
@@ -149,7 +159,6 @@
 (div (make-scheme-number 5) (make-scheme-number 6))
 (eq? (make-scheme-number 5) (make-scheme-number 5))
 
-;; (mraise (make-scheme-number 5))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;; Rational package ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -176,8 +185,8 @@
     (make-rat (* (numer x) (denom y))
               (* (denom x) (numer y))))
   (define (eq? x y)
-    (and (= (numer x) (numer y))
-         (= (denom x) (denom y))))
+    (and (apply-generic 'eq? (numer x) (numer y))
+         (apply-generic 'eq? (denom x) (denom y))))
 
   (define (subset-of? a b) (let ((t1 (get-tag a))
                                  (t2 (get-tag b)))
@@ -200,9 +209,8 @@
        (lambda (n d) (tag (make-rat n d))))
   (put 'eq? '(rational rational) eq?)
   (put 'subset-of? '(rational) subset-of?)
-  (put 'drop '(rational) drop)
-  (put 'mraise '(rational) (lambda (x) (make-complex-from-real-imag (tag x) 0)))
   (put 'project '(rational) project)
+  (put 'mraise '(rational) (lambda (x) (make-complex-from-real-imag (tag x) 0)))
   'done)
 
 ;; constructors for the rest of the system
@@ -211,6 +219,12 @@
 
 ;; test
 (install-rational-package)
+(eq? (make-rational 4 5) (make-rational 8 10))
+(mraise (project (make-rational 6 5)))
+(drop (make-rational 6 1))
+(mul (make-rational 4 5) (make-rational 4 5))
+(div (make-rational 4 5) (make-rational 4 5))
+(square (make-rational 5 4))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;; Rectangular Complex package ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -221,17 +235,13 @@
   (define (imag-part z) (cdr z))
   (define (make-from-real-imag x y) (cons x y))
   (define (magnitude z)
-    (sqrt (+ (sqr (real-part z))
-             (sqr (imag-part z)))))
+    (sqrt (add (square (real-part z))
+               (square (imag-part z)))))
   (define (angle z)
     (atan (imag-part z) (real-part z)))
   (define (make-from-mag-ang r a)
-    (cons (* r (cos a)) (* r (sin a))))
+    (cons (mul r (cos a)) (mul r (sin a))))
 
-
-  (define (drop x) (if (= (imag-part x) 0)
-                       (make-rational x)
-                       '()))
 
   ;; interface to the rest of the system
   (define (tag x) (attach-tag 'rectangular x))
@@ -256,11 +266,11 @@
   (define (angle z) (cdr z))
   (define (make-from-mag-ang r a) (cons r a))
   (define (real-part z)
-    (* (magnitude z) (cos (angle z))))
+    (mul (magnitude z) (cos (angle z))))
   (define (imag-part z)
-    (* (magnitude z) (sin (angle z))))
+    (mul (magnitude z) (sin (angle z))))
   (define (make-from-real-imag x y)
-    (cons (sqrt (+ (sqr x) (sqr y)))
+    (cons (sqrt (add (square x) (square y)))
           (atan y x)))
 
   ;; interface to the rest of the system
@@ -300,22 +310,19 @@
     (make-from-real-imag (sub (real-part z1) (real-part z2))
                          (sub (imag-part z1) (imag-part z2))))
   (define (mul-complex z1 z2)
-    (make-from-mag-ang (* (magnitude z1) (magnitude z2))
-                       (+ (angle z1) (angle z2))))
+    (make-from-mag-ang (mul (magnitude z1) (magnitude z2))
+                       (mul (angle z1) (angle z2))))
   (define (div-complex z1 z2)
-    (make-from-mag-ang (/ (magnitude z1) (magnitude z2))
-                       (- (angle z1) (angle z2))))
+    (make-from-mag-ang (div (magnitude z1) (magnitude z2))
+                       (sub (angle z1) (angle z2))))
   (define (subset-of? a b) false)
 
-  (define (eq? z1 z2)
-    (and (= (angle z1) (angle z2))
-         (= (magnitude z1) (magnitude z2))))
+  (define (eq-complex? z1 z2)
+    (and (eq? (real-part z1) (real-part z2))
+         (eq? (imag-part z1) (imag-part z2))))
 
   (define (project z)
-    (let ((rp (real-part z)))
-      (if (pair? rp)
-          (apply make-rational rp)
-          (make-rational rp 1))))
+    (real-part z))
 
   ;; interface to rest of the system
   (define (tag z) (attach-tag 'complex z))
@@ -335,7 +342,7 @@
   (put 'imag-part '(complex) imag-part)
   (put 'magnitude '(complex) magnitude)
   (put 'angle '(complex) angle)
-  (put 'eq? '(complex complex) eq?)
+  (put 'eq? '(complex complex) eq-complex?)
   (put 'project '(complex) project)
   'done)
 
@@ -353,13 +360,19 @@
 
 (coerse (list (make-complex-from-real-imag 5 3) (make-scheme-number 5)))
 (add (make-complex-from-real-imag 5 3) (make-scheme-number 5))
+(drop  (add (make-complex-from-real-imag 5 3) (make-scheme-number 5)))
 
+(mraise (mraise (make-scheme-number 6)))
 
-;; (mraise (mraise (make-scheme-number 6)))
+(subset-of? (make-complex-from-real-imag 5 8) (make-complex-from-real-imag 6 7))
 
-;; (subset-of? (make-complex-from-real-imag 5 8) (make-complex-from-real-imag 6 7))
+(coerse (list (make-scheme-number 5) (make-complex-from-real-imag 5 6) (make-rational 5 6)))
+;; (make-rational 4 2)
 
-;; (coerse (list (make-scheme-number 5) (make-complex-from-real-imag 5 6) (make-rational 5 6)))
-
-(coerse (list (make-rational 5 2) (make-scheme-number 5)))
-(mraise (make-scheme-number 5))
+;; (mraise (mraise (make-scheme-number 5)))
+(add (make-complex-from-real-imag 5 6) (make-complex-from-real-imag 5 6))
+(apply-generic 'project (make-complex-from-real-imag 5 6))
+(drop (make-complex-from-real-imag (make-rational 5 3) 2))
+;; (project (make-rational 5 1))
+(mul (make-complex-from-mag-ang 9 2) (make-rational 4 5))
+(mraise (make-rational 4 5))
