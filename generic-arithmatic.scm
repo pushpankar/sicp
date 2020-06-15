@@ -91,13 +91,14 @@
                 (error "No valid mapping")
                 (apply apply-generic (append (list op) coersed-result))))))))
 
-
 ;; Generic operations
 (define (add x y) (apply-generic 'add x y))
 (define (sub x y) (apply-generic 'sub x y))
 (define (mul x y) (apply-generic 'mul x y))
 (define (div x y) (apply-generic 'div x y))
 (define (eq? x y) (apply-generic 'eq? x y))
+(define (cosine x) (apply-generic 'cosine x))
+(define (sine x) (apply-generic 'sine x))
 (define (sqrt-generic x ) (apply-generic 'sqrt-generic x ))
 (define (subset-of? a b) (let ((t1 (get-tag a))
                                (t2 (get-tag b)))
@@ -117,10 +118,12 @@
                       x
                       (apply-generic 'project x)))
 
-(define (drop x) (if (eq? (mraise (project x)) x)
-                     (project x)
-                     x))
-
+(define (drop x) (let ((projector (get 'project (list (get-tag x)))))
+                   (if (procedure? projector)
+                       (if (eq? (mraise (project x)) x)
+                           (project x)
+                           x)
+                       x)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;; Number package ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -134,6 +137,8 @@
   (define (div x y) (tag (/ x y)))
   (define (eq? x y) (= x y))
   (define (sqrt-num x) (tag (sqrt x)))
+  (define (cosine-num x) (cos x))
+  (define (sine-num x) (sin x))
   (define (subset-of? a b) (let ((t1 (get-tag a))
                                  (t2 (get-tag b)))
                              (and (equal? t1 'scheme-number) (equal? t2 'rational))))
@@ -144,6 +149,8 @@
   (put 'mul '(scheme-number scheme-number) mul)
   (put 'div '(scheme-number scheme-number) div)
   (put 'eq? '(scheme-number scheme-number) eq?)
+  (put 'cosine '(scheme-number) (lambda (x) (tag (cosine-num x))))
+  (put 'sine '(scheme-number) (lambda (x) (tag (sine-num x))))
   (put 'subset-of? '(scheme-number) subset-of?)
   (put 'make 'scheme-number make)
   (put 'sqrt-generic '(scheme-number) sqrt-num)
@@ -155,11 +162,12 @@
 ;; constructor for the system
 (install-scheme-number)
 
+
 (define (make-scheme-number x)
   ((get 'make 'scheme-number) x))
 
 ;; test scheme num package
-(div (make-scheme-number 5) (make-scheme-number 6))
+;; (drop (div (make-scheme-number 5) (make-scheme-number 6)))
 (eq? (make-scheme-number 5) (make-scheme-number 5))
 (sqrt-generic (make-scheme-number 4))
 
@@ -194,6 +202,11 @@
   (define (sqrt-rational x) (make-rat (sqrt-generic (numer x))
                                       (sqrt-generic (denom x))))
 
+  (define (cosine-rat x) (tag (cos (/ (numer x)
+                                  (denom x)))))
+  (define (sine-rat x) (tag (sin (/ (numer x)
+                                (denom x)))))
+
   (define (subset-of? a b) (let ((t1 (get-tag a))
                                  (t2 (get-tag b)))
                              (and (equal? t1 'rational) (equal? t2 'complex))))
@@ -213,6 +226,8 @@
   (put 'sqrt-generic '(rational) (lambda (x) (tag (sqrt-rational x))))
 
 
+  (put 'cosine '(rational) cosine-rat)
+  (put 'sine '(rational) sine-rat)
   (put 'make 'rational
        (lambda (n d) (tag (make-rat n d))))
   (put 'eq? '(rational rational) eq?)
@@ -228,12 +243,10 @@
 ;; test
 (install-rational-package)
 (eq? (make-rational 4 5) (make-rational 8 10))
-(mraise (project (make-rational 6 5)))
-(drop (make-rational 6 1))
 (mul (make-rational 4 5) (make-rational 4 5))
 (div (make-rational 4 5) (make-rational 4 5))
 (square (make-rational 5 4))
-(sqrt-generic (make-rational 16 4))
+(drop (sqrt-generic (make-rational 16 4)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;; Rectangular Complex package ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -320,7 +333,7 @@
                          (sub (imag-part z1) (imag-part z2))))
   (define (mul-complex z1 z2)
     (make-from-mag-ang (mul (magnitude z1) (magnitude z2))
-                       (mul (angle z1) (angle z2))))
+                       (add (angle z1) (angle z2))))
   (define (div-complex z1 z2)
     (make-from-mag-ang (div (magnitude z1) (magnitude z2))
                        (sub (angle z1) (angle z2))))
@@ -396,3 +409,5 @@
 (mul (make-complex-from-real-imag 3 4) (make-complex-from-real-imag 3 4))
 (div (mraise (make-rational 4 1)) (make-complex-from-real-imag 3 4))
 (mul (make-complex-from-mag-ang 4 1) (make-rational 3 4))
+(apply-generic 'angle (make-complex-from-mag-ang 4 (make-rational 2 2)))
+(drop (make-rational 2 1))
