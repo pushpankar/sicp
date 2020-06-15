@@ -98,6 +98,7 @@
 (define (mul x y) (apply-generic 'mul x y))
 (define (div x y) (apply-generic 'div x y))
 (define (eq? x y) (apply-generic 'eq? x y))
+(define (sqrt-generic x ) (apply-generic 'sqrt-generic x ))
 (define (subset-of? a b) (let ((t1 (get-tag a))
                                (t2 (get-tag b)))
                            (cond
@@ -132,6 +133,7 @@
   (define (mul x y) (tag (* x y)))
   (define (div x y) (tag (/ x y)))
   (define (eq? x y) (= x y))
+  (define (sqrt-num x) (tag (sqrt x)))
   (define (subset-of? a b) (let ((t1 (get-tag a))
                                  (t2 (get-tag b)))
                              (and (equal? t1 'scheme-number) (equal? t2 'rational))))
@@ -144,6 +146,7 @@
   (put 'eq? '(scheme-number scheme-number) eq?)
   (put 'subset-of? '(scheme-number) subset-of?)
   (put 'make 'scheme-number make)
+  (put 'sqrt-generic '(scheme-number) sqrt-num)
   (put 'mraise '(scheme-number) (lambda (x) (make-rational x 1)))
 
   'done)
@@ -158,6 +161,7 @@
 ;; test scheme num package
 (div (make-scheme-number 5) (make-scheme-number 6))
 (eq? (make-scheme-number 5) (make-scheme-number 5))
+(sqrt-generic (make-scheme-number 4))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -171,22 +175,24 @@
     (let ((g (gcd n d)))
       (cons (/ n g) (/ d g))))
   (define (add-rat x y)
-    (make-rat (+ (* (numer x) (denom y))
-                 (* (numer y) (denom x)))
-              (* (denom x) (denom y))))
+    (make-rat (add (mul (numer x) (denom y))
+                   (mul (numer y) (denom x)))
+              (mul (denom x) (denom y))))
   (define (sub-rat x y)
-    (make-rat (- (* (numer x) (denom y))
-                 (* (numer y) (denom x)))
-              (* (denom x) (denom y))))
+    (make-rat (sub (mul (numer x) (denom y))
+                 (mul (numer y) (denom x)))
+              (mul (denom x) (denom y))))
   (define (mul-rat x y)
-    (make-rat (* (numer x) (numer y))
-              (* (denom x) (denom y))))
+    (make-rat (mul (numer x) (numer y))
+              (mul (denom x) (denom y))))
   (define (div-rat x y)
-    (make-rat (* (numer x) (denom y))
-              (* (denom x) (numer y))))
+    (make-rat (mul (numer x) (denom y))
+              (mul (denom x) (numer y))))
   (define (eq? x y)
     (and (apply-generic 'eq? (numer x) (numer y))
          (apply-generic 'eq? (denom x) (denom y))))
+  (define (sqrt-rational x) (make-rat (sqrt-generic (numer x))
+                                      (sqrt-generic (denom x))))
 
   (define (subset-of? a b) (let ((t1 (get-tag a))
                                  (t2 (get-tag b)))
@@ -204,6 +210,8 @@
        (lambda (x y) (tag (mul-rat x y))))
   (put 'div '(rational rational)
        (lambda (x y) (tag (div-rat x y))))
+  (put 'sqrt-generic '(rational) (lambda (x) (tag (sqrt-rational x))))
+
 
   (put 'make 'rational
        (lambda (n d) (tag (make-rat n d))))
@@ -225,6 +233,7 @@
 (mul (make-rational 4 5) (make-rational 4 5))
 (div (make-rational 4 5) (make-rational 4 5))
 (square (make-rational 5 4))
+(sqrt-generic (make-rational 16 4))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;; Rectangular Complex package ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -235,8 +244,8 @@
   (define (imag-part z) (cdr z))
   (define (make-from-real-imag x y) (cons x y))
   (define (magnitude z)
-    (sqrt (add (square (real-part z))
-               (square (imag-part z)))))
+    (sqrt-generic (add (square (real-part z))
+                       (square (imag-part z)))))
   (define (angle z)
     (atan (imag-part z) (real-part z)))
   (define (make-from-mag-ang r a)
@@ -362,7 +371,7 @@
 (add (make-complex-from-real-imag 5 3) (make-scheme-number 5))
 (drop  (add (make-complex-from-real-imag 5 3) (make-scheme-number 5)))
 
-(mraise (mraise (make-scheme-number 6)))
+(sub (mraise (mraise (make-scheme-number 6))) (make-scheme-number 4))
 
 (subset-of? (make-complex-from-real-imag 5 8) (make-complex-from-real-imag 6 7))
 
@@ -374,5 +383,16 @@
 (apply-generic 'project (make-complex-from-real-imag 5 6))
 (drop (make-complex-from-real-imag (make-rational 5 3) 2))
 ;; (project (make-rational 5 1))
-(mul (make-complex-from-mag-ang 9 2) (make-rational 4 5))
-(mraise (make-rational 4 5))
+;; (mul (make-complex-from-mag-ang 9 2) (make-rational 4 5))
+(apply-generic 'magnitude (mraise (make-rational 3 4)))
+(let ((z (mraise (make-rational 3 4))))
+    (add (square (apply-generic 'real-part z))
+                       (square (apply-generic 'imag-part z))))
+;; (add (square (apply-generic 'real-part (mraise (make-rational 3 4))))
+(apply-generic 'real-part (mraise (make-rational 3 4)))
+;; (sqrt-generic (make-rational 4 9))
+(apply-generic 'magnitude (make-complex-from-mag-ang 3 4))
+(apply-generic 'magnitude (make-complex-from-real-imag (make-rational 1 4) 0))
+(mul (make-complex-from-real-imag 3 4) (make-complex-from-real-imag 3 4))
+(div (mraise (make-rational 4 1)) (make-complex-from-real-imag 3 4))
+(mul (make-complex-from-mag-ang 4 1) (make-rational 3 4))
