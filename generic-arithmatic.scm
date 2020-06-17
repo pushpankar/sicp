@@ -92,12 +92,14 @@
                 (apply apply-generic (append (list op) coersed-result))))))))
 
 ;; Generic operations
+(define (=zero? x) (apply-generic '=zero? x))
 (define (add x y) (apply-generic 'add x y))
-(define (sub x y) (apply-generic 'sub x y))
+(define (sub x y) (add x (negate y)))
 (define (mul x y) (apply-generic 'mul x y))
 (define (div x y) (apply-generic 'div x y))
 (define (eq? x y) (apply-generic 'eq? x y))
 (define (cosine x) (apply-generic 'cosine x))
+(define (negate x) (apply-generic 'negate x))
 (define (sine x) (apply-generic 'sine x))
 (define (sqrt-generic x ) (apply-generic 'sqrt-generic x ))
 (define (subset-of? a b) (let ((t1 (get-tag a))
@@ -136,6 +138,8 @@
   (define (mul x y) (tag (* x y)))
   (define (div x y) (tag (/ x y)))
   (define (eq? x y) (= x y))
+  (define (negate-num x) (tag (* -1 x)))
+  (define (=zero-num? x) (= x 0))
   (define (sqrt-num x) (tag (sqrt x)))
   (define (cosine-num x) (cos x))
   (define (sine-num x) (sin x))
@@ -144,6 +148,8 @@
                              (and (equal? t1 'scheme-number) (equal? t2 'rational))))
 
   ;; interface
+  (put '=zero? '(scheme-number) =zero-num?)
+  (put 'negate '(scheme-number) negate-num)
   (put 'add '(scheme-number scheme-number) add)
   (put 'sub '(scheme-number scheme-number) sub)
   (put 'mul '(scheme-number scheme-number) mul)
@@ -186,6 +192,8 @@
     (make-rat (add (mul (numer x) (denom y))
                    (mul (numer y) (denom x)))
               (mul (denom x) (denom y))))
+  (define (negate-rat x) (make-rat (negate (numer x))
+                                   (denom x)))
   (define (sub-rat x y)
     (make-rat (sub (mul (numer x) (denom y))
                  (mul (numer y) (denom x)))
@@ -196,9 +204,10 @@
   (define (div-rat x y)
     (make-rat (mul (numer x) (denom y))
               (mul (denom x) (numer y))))
-  (define (eq? x y)
-    (and (apply-generic 'eq? (numer x) (numer y))
-         (apply-generic 'eq? (denom x) (denom y))))
+  (define (eq-rat? x y)
+    (and (eq? (numer x) (numer y))
+         (eq? (denom x) (denom y))))
+  (define (=zero-rat? r) (apply-generic '=zero? (numer r)))
   (define (sqrt-rational x) (make-rat (sqrt-generic (numer x))
                                       (sqrt-generic (denom x))))
 
@@ -215,8 +224,10 @@
 
   ;; interface to rest of the system
   (define (tag x) (attach-tag 'rational x))
+  (put '=zero? '(rational) =zero-rat?)
   (put 'add '(rational rational)
        (lambda (x y) (tag (add-rat x y))))
+  (put 'negate '(rational) (lambda (x) (tag (negate-rat x))))
   (put 'sub '(rational rational)
        (lambda (x y) (tag (sub-rat x y))))
   (put 'mul '(rational rational)
@@ -230,7 +241,7 @@
   (put 'sine '(rational) sine-rat)
   (put 'make 'rational
        (lambda (n d) (tag (make-rat n d))))
-  (put 'eq? '(rational rational) eq?)
+  (put 'eq? '(rational rational) eq-rat?)
   (put 'subset-of? '(rational) subset-of?)
   (put 'project '(rational) project)
   (put 'mraise '(rational) (lambda (x) (make-complex-from-real-imag (tag x) 0)))
@@ -325,9 +336,14 @@
   (define (angle z) (apply-generic 'angle z))
 
   ;; internal procedures
+  (define (=zero-complex? z)
+    (and (=zero? (real-part z)) (=zero? (imag-part z))))
   (define (add-complex z1 z2)
     (make-from-real-imag (add (real-part z1) (real-part z2))
                          (add (imag-part z1) (imag-part z2))))
+  (define (negate-complex z)
+    (make-from-real-imag (negate (real-part z))
+                         (negate (imag-part z))))
   (define (sub-complex z1 z2)
     (make-from-real-imag (sub (real-part z1) (real-part z2))
                          (sub (imag-part z1) (imag-part z2))))
@@ -350,6 +366,8 @@
   (define (tag z) (attach-tag 'complex z))
   (put 'add '(complex complex)
        (lambda (z1 z2) (tag (add-complex z1 z2))))
+  (put 'negate '(complex)
+       (lambda (z) (tag (negate-complex z))))
   (put 'sub '(complex complex)
        (lambda (z1 z2) (tag (sub-complex z1 z2))))
   (put 'mul '(complex complex)
@@ -365,6 +383,7 @@
   (put 'magnitude '(complex) magnitude)
   (put 'angle '(complex) angle)
   (put 'eq? '(complex complex) eq-complex?)
+  (put '=zero? '(complex) =zero-complex?)
   (put 'project '(complex) project)
   'done)
 
@@ -411,3 +430,137 @@
 (mul (make-complex-from-mag-ang 4 1) (make-rational 3 4))
 (apply-generic 'angle (make-complex-from-mag-ang 4 (make-rational 2 2)))
 (drop (make-rational 2 1))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;SYMBOLIC ALGEBRA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(define (install-polynomial-package)
+  ;; internal procedures
+  (define (make-poly variable term-list)
+    (cons variable term-list))
+  (define (variable poly)
+    (car poly))
+  (define (term-list poly)
+    (cdr poly))
+
+  (define (variable? x)
+    (symbol? x))
+  (define (same-variable? x y)
+    (equal? x y))
+  (define (=zero-poly? p)
+    (define (zero-term-list tl)
+      (cond ((empty-term-list? tl) true)
+            ((=zero? (coeff (first-term tl))) (zero-term-list (rest-terms tl)))
+            (else false)))
+    (zero-term-list (term-list p)))
+
+  (define (make-term o c)
+    (list o c))
+  (define (order t)
+    (car t))
+  (define (coeff t)
+    (cadr t))
+  (define (empty-term-list? tl) (null? tl))
+
+  (define (adjoin-term term tl)
+    (if (=zero? (coeff term))
+        tl
+        (cons term tl)))
+  (define (first-term tl)
+    (car tl))
+  (define (rest-terms tl)
+    (cdr tl))
+  (define (empty-termlist)
+    '())
+
+
+  (define (negate-poly p)
+    (define (negate-term-list tl)
+      (cond
+       ((empty-term-list? tl) (empty-termlist))
+       (else
+        (let ((t1 (first-term tl))
+              (rt (rest-terms tl)))
+          (adjoin-term (make-term (order t1)
+                                  (negate (coeff t1)))
+                       (negate-term-list rt))))))
+    (make-poly (variable p) (negate-term-list (term-list p))))
+
+
+  (define (add-poly p1 p2)
+    (if (same-variable? (variable p1) (variable p2))
+        (make-poly (variable p1) (add-terms (term-list p1) (term-list p2)))
+        (error "Polys not in same variable")))
+
+
+  (define (mul-poly p1 p2)
+    (if (same-variable? (variable p1) (variable p2))
+        (make-poly (variable p1) (mul-terms (term-list p1) (term-list p2)))
+        (error "Poly not in same variable")
+        ))
+
+  (define (add-term t1 t2)
+    (make-term (order t1) (add (coeff t1) (coeff t2))))
+
+  (define (add-terms l1 l2)
+    (cond ((empty-term-list? l1) l2)
+          ((empty-term-list? l2) l1)
+          (else
+           (let ((t1 (first-term l1))
+                 (t2 (first-term l2)))
+             (cond ((> (order t1) (order t2)) (adjoin-term t1 (add-terms (rest-terms l1) l2)))
+                   ((< (order t1) (order t2)) (adjoin-term t2 (add-terms l1 (rest-terms l2))))
+                   (else (adjoin-term (add-term t1 t2) (add-terms (rest-terms l1) (rest-terms l2))))
+                   )))))
+
+  (define (mul-term t1 t2)
+    (make-term (add (order t1) (order t2))
+               (mul (coeff t1) (coeff t2))))
+
+  (define (mul-term-by-all-tems t1 l2)
+    (if (empty-term-list? l2)
+        (empty-termlist)
+        (adjoin-term (mul-term t1 (first-term l2))
+                     (rest-terms l2))))
+
+  (define (mul-terms l1 l2)
+    (if (empty-term-list? l1)
+        (empty-termlist)
+        (let ((t1 (first-term l1)))
+          (adjoin-terms (mul-term-by-all-terms t1 l2)
+                        (mul-terms (rest-terms l1) l2)))))
+
+
+
+  ;; interface
+  (define (tag p) (attach-tag 'polynomial p))
+  (put 'negate '(polynomial) (lambda (x) (tag (negate-poly x))))
+  (put '=zero? '(polynomial) =zero-poly?)
+  (put 'add '(polynomial polynomial) (lambda (p1 p2) (tag (add-poly p1 p2))))
+  (put 'mul '(polynomial polynomial) (lambda (p1 p2) (tag (mul-poly p1 p2))))
+  (put 'make 'polynomial (lambda (var terms) (tag (make-poly var terms))))
+  'done
+  )
+
+(install-polynomial-package)
+
+(define (make-polynomial var terms)
+  ((get 'make 'polynomial) var terms))
+
+(=zero? (make-scheme-number 0))
+(eq? (make-rational 2 1) (make-rational 0 2))
+(=zero? (make-rational 0 4))
+(=zero? (make-complex-from-real-imag (make-rational 0 3) 0))
+
+(make-polynomial 'x (list '(2 1) '(1 10)))
+(=zero? (make-polynomial 'x (list '(2 0) '(1 1))))
+(negate (make-complex-from-real-imag (make-rational 3 4) 4))
+(negate (make-polynomial 'x (list '(2 1) '(1 10))))
+
+(sub (make-rational 2 4) (make-rational 1 4))
+(sub (make-complex-from-real-imag 1 2) (make-complex-from-real-imag (make-rational 1 2) 2))
+(add (make-polynomial 'x (list '(2 1) '(1 10))) (negate (make-polynomial 'x (list '(2 1) '(1 3)))))
+(sub (make-polynomial 'x (list '(2 1) '(1 10))) (make-polynomial 'x (list '(2 1) '(1 0) '(2 3))))
