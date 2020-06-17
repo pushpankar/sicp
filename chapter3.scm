@@ -22,3 +22,15 @@
 (ms 5)
 (ms 'how-many-calls?)
 (ms 'reset-counter)
+
+(define (make-account balance password)
+  (define (dispatch pass message)
+    (if (eq? pass password)
+        (cond
+         ((eq? message 'withdraw) (lambda (x) (begin (set! balance (- balance x)) balance)))
+         ((eq? message 'deposit)  (lambda (x) (begin (set! balance (+ balance x)) balance))))
+        'Incorrect-password))
+  dispatch)
+
+(define acc (make-account 100 'secret))
+((acc 'secret- 'withdraw) 40)
