@@ -1,0 +1,8 @@
+(define (make-accumulator init)
+  (define (increment value)
+    (set! init (+ init value))
+    init)
+  increment)
+(define A (make-accumulator 5))
+(A 5)
+(A 7)
