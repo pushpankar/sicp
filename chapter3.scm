@@ -24,13 +24,19 @@
 (ms 'reset-counter)
 
 (define (make-account balance password)
-  (define (dispatch pass message)
-    (if (eq? pass password)
-        (cond
-         ((eq? message 'withdraw) (lambda (x) (begin (set! balance (- balance x)) balance)))
-         ((eq? message 'deposit)  (lambda (x) (begin (set! balance (+ balance x)) balance))))
-        'Incorrect-password))
-  dispatch)
+  (let ((secure-account (make-monitered (lambda (x) 'password-error))))
+    (define (dispatch pass message)
+      (if (eq? pass password)
+          (begin (secure-account 'reset-counter)
+                 (cond
+                  ((eq? message 'withdraw) (lambda (x) (begin (set! balance (- balance x)) balance)))
+                  ((eq? message 'deposit)  (lambda (x) (begin (set! balance (+ balance x)) balance)))))
+          (if (> (secure-account 'how-many-calls?) 3)
+              (lambda (x) 'calling-police)
+              secure-account)
+          ))
+    dispatch))
 
 (define acc (make-account 100 'secret))
-((acc 'secret- 'withdraw) 40)
+((acc 'secret 'withdraw) 40)
+((acc 'secre 'deposit) 10)
