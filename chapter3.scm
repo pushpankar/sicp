@@ -40,3 +40,40 @@
 (define acc (make-account 100 'secret))
 ((acc 'secret 'withdraw) 40)
 ((acc 'secre 'deposit) 10)
+
+;; Monte carlo
+
+(define (monte-carlo n-trials experiment)
+  (define (iter trials-remaining trials-passed)
+    (cond ((= trials-remaining 0)
+           (/ trials-passed n-trials))
+          ((experiment) (iter (- trials-remaining 1) (+ 1 trials-passed)))
+          (else (iter (- trials-remaining 1) trials-passed))))
+  (iter n-trials 0))
+
+;; 3.5
+(define (random-in-range low high)
+  (let ([range (- high low)])
+    (+ low (* (random) range))))
+
+(define (random-in-range low high)
+  (let ((range (- high low)))
+    (+ low (random range))))
+
+(define (estimate-integral predicate x1 x2 y1 y2 n)
+  (define (inside?)
+    (let ((rx (random-in-range x1 x2))
+          (ry (random-in-range y1 y2)))
+      (predicate rx ry)))
+  (* (- x2 x1) (- y2 y1) (monte-carlo n inside?)))
+
+(/ (estimate-integral (lambda (x y) (<= (+ (sqr (- x 5)) (sqr (- y 7))) (sqr 3)))
+                   2
+                   8
+                   4
+                   10
+                   1000000) 9.0)
+
+(estimate-integral (lambda (x y) (<= (+ (* x x) (* y y)) 1.0)) -1.0 1.0 -1.0 1.0 1000000)
+
+(random-in-range 1.0 4.0)
