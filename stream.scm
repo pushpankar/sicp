@@ -70,6 +70,19 @@
 (define (scale-stream s val)
   (stream-map (lambda (x) (* x val)) s))
 
-(define pi-stream (scale-stream (partial-sum pi-summands) 4))
-(define pi-stream (stream-map (lambda (x) (* x 4))
-                              pi-summands))
+(define pi-stream (scale-stream (partial-sum (pi-summands 1.0)) 4))
+(stream-head (euler-transform (euler-transform pi-stream)) 30)
+(euler-transform (pi-stream 1.0))
+
+
+(define (log-summands n)
+  (cons-stream (/ 1 n)
+               (stream-map - (log-summands (+ n 1)))))
+(define log-stream (partial-sum (log-summands 1.0)))
+(stream-head (euler-transform log-stream) 25)
+
+;; Streams as signals
+
+(define (RC r c dt)
+  (lambda (s v0)
+    (add-stream (integral v0))))
