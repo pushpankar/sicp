@@ -6,26 +6,25 @@
 (define (get op)
   (hash-ref *op-table* op '()))
 
-(get 'quote)
-;; (define (eval exp env)
-;;   (cond ((self-evaluating? exp) exp)
+;; (define (meval exp env)
+;;   (cond ((self-mevaluating? exp) exp)
 ;;         ((variable? exp) (lookup-variable-value exp env))
 ;;         ((quoted? exp) (text-of-quotation exp))
-;;         ((assignment? exp) (eval-assignment exp env))
-;;         ((definition? exp) (eval-definition exp env))
-;;         ((if? exp) (eval-if exp env))
+;;         ((assignment? exp) (meval-assignment exp env))
+;;         ((definition? exp) (meval-definition exp env))
+;;         ((if? exp) (meval-if exp env))
 ;;         ((lambda? exp)
 ;;          (make-procedure (lambda-parameters exp)
 ;;                          (lambda-body exp)
 ;;                          env))
-;;         ((begin? exp) (eval-sequence (begin-actions exp) exp))
-;;         ((cond? exp) (eval (cond-if exp) env))
-;;         ((application? exp) (apply (eval (operator exp) env)
+;;         ((begin? exp) (meval-sequence (begin-actions exp) exp))
+;;         ((cond? exp) (meval (cond-if exp) env))
+;;         ((application? exp) (apply (meval (operator exp) env)
 ;;                                    (list-of-values (operands exp) env)))
-;;         (else (error "Unknown expression type -- EVAL" exp))))
+;;         (else (error "Unknown expression type -- MEVAL" exp))))
 
-(define (eval exp env)
-  (cond ((self-evaluating? exp) exp)
+(define (meval exp env)
+  (cond ((self-mevaluating? exp) exp)
         ((variable? exp) (lookup-variable-value exp env))
         (else (let ((proc (get (car exp))))
                 (if (procedure? proc)
@@ -39,13 +38,13 @@
       false))
 
 
-;; self evaluating
-(define (self-evaluating? exp)
+;; self mevaluating
+(define (self-mevaluating? exp)
   (cond ((number? exp) true)
         ((string? exp) true)
         (else false)))
 
-(eval "hi" '())
+(meval "hi" '())
 
 ;; variable
 (define (variable? exp) (symbol? exp))
@@ -56,46 +55,46 @@
 (define (text-of-quotation exp _env) (cadr exp))
 (put 'quote text-of-quotation)
 
-(eval '(quote hello) '())
+(meval '(quote hello) '())
+
 ;; assignment
 (define (assignment? exp)
   (tagged-list? exp 'set!))
 (define (assignment-variable exp) (cadr exp))
 (define (assignment-value exp) (caddr exp))
-(define (eval-assignment exp env)
+(define (meval-assignment exp env)
   (set-variable-value! (assignment-variable exp)
-                       (eval (assignment-value exp) env)
+                       (meval (assignment-value exp) env)
                        env)
   'ok)
 
-(put 'set! eval-assignment)
-
-(eval '(set! 'a 5) '())
+(put 'set! meval-assignment)
 
 ;; definition
-(define (eval-definition exp env)
+(define (meval-definition exp env)
   (define-variable! (definition-variable exp)
-                    (eval (definition-value exp) env)
+                    (meval (definition-value exp) env)
                     env)
   'ok)
 
 (define (definition? exp)
   (tagged-list? exp 'define))
 
-(put 'define eval-definition)
+(put 'define meval-definition)
 
 ;; if
 (define false 'false)
+(define true 'true)
 (define (true? x)
   (not (eq? x false)))
 
 (define (false? x)
   (eq? x false))
 
-(define (eval-if exp env)
-  (if (true? (eval (if-predicate exp) env))
-      (eval (if-consequent exp) env)
-      (eval (if-alternative exp) env)))
+(define (meval-if exp env)
+  (if (true? (meval (if-predicate exp) env))
+      (meval (if-consequent exp) env)
+      (meval (if-alternative exp) env)))
 
 (define (if? exp) (tagged-list? exp 'if))
 
@@ -112,11 +111,9 @@
 (define (make-if predicate consequent alternative)
   (list 'if predicate consequent alternative))
 
-(put 'if eval-if)
-
-(eval '(if false 2 1) '())
-(variable? '(if false))
-(cadr '(if false))
+(put 'if meval-if)
+(meval '(if false 1 0) '())
+;; (print (get (car '(if false 1 0))))
 
 ;; lambda
 (define (lambda? exp) (tagged-list? exp 'lambda))
@@ -140,10 +137,10 @@
 (define (first-exp seq) (car seq))
 (define (rest-exps seq) (cdr seq))
 
-(define (eval-sequence exps env)
-  (cond ((last-exp? exp) (eval (first-exp exps) env))
-        (else (eval (first-exp exps) env)
-              (eval-sequence (rest-exps exps) env))))
+(define (meval-sequence exps env)
+  (cond ((last-exp? exp) (meval (first-exp exps) env))
+        (else (meval (first-exp exps) env)
+              (meval-sequence (rest-exps exps) env))))
 
 (define (sequence->exp seq)
   (cond ((null? seq) seq)
@@ -151,7 +148,7 @@
         (else (make-begin seq))))
 
 (define (make-begin seq) (cons 'begin seq))
-(put 'begin (lambda (exp env) (eval-sequence (begin-actions exp) exp)))
+(put 'begin (lambda (exp env) (meval-sequence (begin-actions exp) exp)))
 
 ;; cond
 (define (cond? exp) (tagged-list? exp 'cond))
@@ -182,7 +179,7 @@
                      (sequence->exp (cond-actions first))
                      (expand-clauses rest))))))
 
-(put 'cond (lambda (exp env) (eval (cond->if exp) env)))
+(put 'cond (lambda (exp env) (meval (cond->if exp) env)))
 
 ;; application
 
@@ -196,10 +193,10 @@
 (define (list-of-values exps env)
   (if (no-operands? exps)
       '()
-      (cons (eval (first-operand exps) env)
+      (cons (meval (first-operand exps) env)
             (list-of-values (rest-operands exps) env))))
 
-(put 'application (lambda (exp env) (apply (eval (operator exp) env)
+(put 'application (lambda (exp env) (apply (meval (operator exp) env)
                                            (list-of-values (operands exp) env))))
 
 
@@ -212,7 +209,7 @@
   (cond ((primitive-procedure? procedure)
          (apply-primitive-procedure procedure arguments))
         ((compound-procedure? procedure)
-         (eval-sequence (procedure-body procedure)
+         (meval-sequence (procedure-body procedure)
                         (extend-environment (procedure-parameters procedure)
                                             arguments
                                             (procedure-environment procedure))))
@@ -223,24 +220,121 @@
 ;; (define (list-of-values-lr exps env)
 ;;   (if (no-operands? exps)
 ;;       '()
-;;       (let ((first-value (eval (first-operand exps) env)))
+;;       (let ((first-value (meval (first-operand exps) env)))
 ;;         (cons first-value
 ;;               (list-of-values-lr (rest-operands exps) env)))))
 
-;; (define (eval-if exp env)
-;;   (if (true? (eval (if-predicate exp) env))
-;;       (eval (if-consequent exp) env)
-;;       (eval (if-alternative exp) env)))
+;; (define (meval-if exp env)
+;;   (if (true? (meval (if-predicate exp) env))
+;;       (meval (if-consequent exp) env)
+;;       (meval (if-alternative exp) env)))
 
-;; (define (eval-assignment exp env)
+;; (define (meval-assignment exp env)
 ;;   (set-variable-value! (assignment-variable exp)
-;;                        (eval (assignment-value exp) env)
+;;                        (meval (assignment-value exp) env)
 ;;                        env)
 ;;   'ok)
 
-;; (define (eval-definition exp env)
+;; (define (meval-definition exp env)
 ;;   (define-variable! (definition-variable exp)
-;;     (eval (definition-value exp) env)
+;;     (meval (definition-value exp) env)
 ;;     env)
 ;;   'ok)
 
+(define (and vals)
+  (cond ((null? vals) true)
+        ((meval (car vals)) (and (cdr vals)))
+        (else false)))
+;; While
+
+(define (while? exp) (eq? (car exp) 'while))
+(define (while-predicate exp) (cadr exp))
+(define (while-actions exp) (cddr exp))
+(define (make-while exp) (cons 'while exp))
+(define (meval-while exp env) (if (eval (while-predicate exp) exp)
+                                 (meval (make-begin (append (while-actions exp) (make-while exp))) exp)
+                                 'ok))
+
+
+;; Section 4.1.3
+
+(define (true? x)
+  (not (eq? x false)))
+
+(define (false? x)
+  (eq? x false))
+
+(define (make-procedure parameters body env)
+  (list 'procedure parameters body env))
+
+(define (compound-procedure? p)
+  (tagged-list? p 'procedure))
+
+(define (procedure-parameters p) (cadr p))
+(define (procedure-body p) (caddr p))
+(define (procedure-environment p) (cadddr p))
+
+
+(define (enclosing-environment env) (cdr env))
+
+(define (first-frame env) (car env))
+
+(define the-empty-environment '())
+
+(define (make-frame variables values)
+  (cons variables values))
+
+(define (frame-variables frame) (car frame))
+(define (frame-values frame) (cdr frame))
+
+(define (add-binding-to-frame! var val frame)
+  (set-car! frame (cons var (car frame)))
+  (set-cdr! frame (cons val (cdr frame))))
+
+(define (extend-environment vars vals base-env)
+  (if (= (length vars) (length vals))
+      (cons (make-frame vars vals) base-env)
+      (if (< (length vars) (length vals))
+          (error "Too many arguments supplied" vars vals)
+          (error "Too few arguments supplied" vars vals))))
+
+(define (lookup-variable-value var env)
+  (define (env-loop env)
+    (define (scan vars vals)
+      (cond ((null? vars)
+             (env-loop (enclosing-environment env)))
+            ((eq? var (car vars))
+             (car vals))
+            (else (scan (cdr vars) (cdr vals)))))
+    (if (eq? env the-empty-environment)
+        (error "Unbound variable" var)
+        (let ((frame (first-frame env)))
+          (scan (frame-variables frame)
+                (frame-values frame)))))
+  (env-loop env))
+
+(define (set-variable-value! var val env)
+  (define (env-loop env)
+    (define (scan vars vals)
+      (cond ((null? vars)
+             (env-loop (enclosing-environment env)))
+            ((eq? var (car vars))
+             (set-car! vals val))
+            (else (scan (cdr vars) (cdr vals)))))
+    (if (eq? env the-empty-environment)
+        (error "Unbound variable -- SET!" var)
+        (let ((frame (first-frame env)))
+          (scan (frame-variables frame)
+                (frame-values frame)))))
+  (env-loop env))
+
+(define (define-variable! var val env)
+  (let ((frame (first-frame env)))
+    (define (scan vars vals)
+      (cond ((null? vars)
+             (add-binding-to-frame! var val frame))
+            ((eq? var (car vars))
+             (set-car! vals val))
+            (else (scan (cdr vars) (cdr vals)))))
+    (scan (frame-variables frame)
+          (frame-values frame))))
